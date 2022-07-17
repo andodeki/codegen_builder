@@ -1,0 +1,504 @@
+package datasources
+
+{{$target := index .ProductTargets.DSource.DBS 0 -}}
+{{$targetmap := index .ProductTargets.DSource.DBSMap ($target) -}}
+{{$name := replace $target "DBClients" "" -}}
+{{$targetfields := index .ProductTargets.DSource.DBSMapFields ($target) -}}
+{{$projectName := .ProductSource -}}
+{{$companyName := .Company -}}
+import (
+    "time"
+    "fmt"
+    "context"
+	"unicode/utf8"
+	"net/url"
+	"database/sql"
+
+    "github.com/{{$companyName}}/{{$projectName}}/src/util"
+    "github.com/{{$companyName}}/{{$projectName}}/src/config"
+
+
+    "github.com/pkg/errors"
+    {{if contains $name "Postgres" -}}
+	"embed"
+
+	"github.com/jmoiron/sqlx"
+    "github.com/sirupsen/logrus"
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
+    {{- end -}}
+
+    {{if contains $name "Scylla" -}}
+    "github.com/{{$companyName}}/{{$projectName}}/src/datasources/migrations/cqlmigrations"
+    "github.com/gocql/gocql"
+	"github.com/scylladb/gocqlx/v2"
+    cqlMigrate "github.com/scylladb/gocqlx/v2/migrate"
+    {{- end -}}
+    {{if contains $name "Redis" -}}
+	"runtime"
+    "github.com/go-redis/cache/v8"
+	"github.com/go-redis/redis/v8"
+    {{- end -}}
+
+    {{if contains $name "Monet" -}}
+    _ "github.com/MonetDB/MonetDB-Go/src"
+    {{- end }}
+)
+
+{{if contains $name "Postgres" -}}
+var db *sql.DB
+type ContextKey string
+const CONTEXT_TRANSACTION_KEY ContextKey = "database:tx"
+
+//go:embed migrations/*.sql
+var fs embed.FS
+{{end }}
+
+{{if contains $name "Scylla" -}}
+var configf = struct {
+	DB       gocql.ClusterConfig
+	Password gocql.PasswordAuthenticator
+}{}
+{{end }}
+
+type {{$target}} struct {
+{{- range $k, $v := $targetfields }}
+    {{ $v -}}
+{{ end }}
+}
+
+type {{$target}}Interface interface{
+{{- range $key, $value := .ProductTargets.DSource.IMethods }}
+    {{if not (contains $key "Run") -}}
+        {{if contains $key "DBClient" -}}{{$name}}{{$key -}}{{else}}{{$key -}}{{end}}(
+    {{- range $index, $items := $value -}}
+    {{if eq $index 0 -}}
+    {{ range $idx, $itm := $items -}}
+    {{$lenitm := len $items -}}
+    {{if eq $itm "config"}}{{$itm }} *config.{{$target}}{{else}}{{$itm -}}{{end}}{{if (isLast $idx $lenitm)}}{{else}}, {{end }}
+    {{- end -}}{{- else -}}) {{ if eq $index 1}}{{ if gt (len $items) 1}}({{else}}{{end}}{{range $idx, $itm := $items -}}
+    {{ if gt (len $items) 1}}{{if eq $idx 0}}{{$itm}}{{$target}}, {{else}}{{$itm}}{{end -}}
+    {{else}} {{if contains $itm "."}}{{if or (contains $target "Postgres") (contains $target "Monet")}}{{replace $itm "." "*sqlx.DB"}}
+    {{- else}}{{- if or (contains $target "Scylla")}}*gocqlx.Session
+    {{- else}}{{- if or (contains $target "Redis")}}*redis.Client
+    {{- end -}}{{- end -}}{{- end -}}
+    {{- else}}{{$itm}}{{end}}{{end}}{{end}}{{ if gt (len $items) 1}}){{else}}{{end}}{{end}}{{end}}{{end -}}
+    {{- else }}{{- end }} 
+{{- end}} 
+}
+
+
+
+{{- range $key, $value := .ProductTargets.DSource.IMethods }}
+{{$methodvar :=lowerTitle (initials $target)}}
+func {{if contains $key "Run" -}} {{$key -}}{{replace $target "Clients" ""}}{{else}}{{if contains $key "DBClient"}}({{lowerTitle (initials $target)}} *{{$target -}}
+) {{$name}}{{$key -}}{{else}}({{lowerTitle (initials $target)}} *{{$target -}}
+) {{$key -}}{{end}}{{end}}(
+{{- range $index, $items := $value -}}
+{{if eq $index 0 -}}
+{{ range $idx, $itm := $items -}}
+{{$lenitm := len $items -}}
+{{if eq $itm "config"}}{{$itm }} *config.{{$target}}{{else}}{{$itm}}{{end}}{{if (isLast $idx $lenitm)}}{{else}}, {{end }}
+{{- end -}}{{- else -}}) {{ if eq $index 1}}{{ if gt (len $items) 1}}({{else}}{{end}}{{range $idx, $itm := $items -}}
+{{ if gt (len $items) 1}}{{if eq $idx 0}}{{$itm}}{{$target}}Interface,{{else}}{{$itm}}{{end -}}
+{{else}}{{if contains $itm "."}}{{if or (contains $target "Postgres") (contains $target "Monet")}}{{replace $itm "." "*sqlx.DB"}}
+{{- else}}{{- if or (contains $target "Scylla")}}*gocqlx.Session
+{{- else}}{{- if or (contains $target "Redis")}}*redis.Client
+{{- end}}{{- end}}{{- end}}
+{{- else}}{{$itm}}{{end}}{{end}}{{end -}}
+{{ if gt (len $items) 1}}){{else}}{{end}}{{end}}{
+    {{if eq $key "Run" -}}//{{$key}}
+    logger.Info("connecting to {{lower $name}} database!")
+    delay := time.NewTicker(1 * time.Second)
+	timeoutExceeded := time.After((time.Duration(retries) * time.Second))
+    //{{range $idx, $itm := $targetmap}}{{if contains $itm "SSL"}}{{$itm}}(){{end}}{{end}}
+    {{- if or (contains $target "Postgres") (contains $target "Monet")}}
+    dsn := url.URL{
+        {{- if or (contains $target "Postgres")}}
+        Scheme: config.{{range $idx, $itm := $targetmap}}{{if contains $itm "Driver"}}{{$itm}}(){{end}}{{end}},
+        {{- end }}
+		User:   url.UserPassword(config.
+        {{- range $idx, $itm := $targetmap -}}{{- if contains $itm "Username"}}{{- $itm}}(){{- end -}}{{- end -}}, config.{{- range $idx, $itm := $targetmap}}{{- if contains $itm "Password"}}{{$itm}}(){{end -}}{{end -}}),
+		Host:   fmt.Sprintf("%s:%s", config.
+        {{- range $idx, $itm := $targetmap -}}{{- if contains $itm "Host"}}{{- $itm}}(){{- end -}}{{- end -}}, config.{{- range $idx, $itm := $targetmap}}{{- if contains $itm "Port"}}{{$itm}}(){{end -}}{{end -}}),
+		Path:   config.{{range $idx, $itm := $targetmap}}{{if contains $itm "Name"}}{{$itm}}(){{end}}{{end}},
+    }
+    q := dsn.Query()
+	{{- if or (contains $target "Postgres")}}
+    q.Add("sslmode", config.{{range $idx, $itm := $targetmap}}{{if contains $itm "SSL"}}{{$itm}}(){{end}}{{end}})
+    {{- end }}
+	dsn.RawQuery = q.Encode()
+	dbURL := dsn.String()
+
+    {{end -}}
+    {{ if or (contains $target "Redis")}}
+	host := config.{{range $idx, $itm := $targetmap}}{{if contains $itm "RedisAddress"}}{{$itm}}(){{end}}{{end}}
+    rdb := &redis.Options{
+		Addr:         host,
+		Password:     config.{{range $idx, $itm := $targetmap}}{{if contains $itm "RedisPassword"}}{{$itm}}(){{end}}{{end}},
+		DB:           0,
+		MaxRetries:   3,
+		DialTimeout:  time.Duration(15) * time.Second, // 15 S
+		ReadTimeout:  time.Duration(15) * time.Second, // 15 S
+		PoolTimeout:  time.Duration(15) * time.Second, // 15 S
+		WriteTimeout: time.Duration(15) * time.Second, // 15 S
+		MinIdleConns: 1,
+		PoolSize:     10 * runtime.GOMAXPROCS(-1),
+	}
+    {{end}}
+    for {
+		select {
+		case {{lthan}}-timeoutExceeded:
+            return &{{$target}}{}, util.NewError("database failed: timeoutExceeded")
+        case {{lthan}}-delay.C:
+			logger.Info("trying to connect to the database")
+            {{- if or (contains $target "Postgres") (contains $target "Monet")}}
+            {{- if or (contains $target "Postgres")}}
+            conn := sqlx.MustConnect(config.{{range $idx, $itm := $targetmap}}{{if contains $itm "Driver"}}{{$itm}}(){{end}}{{end}}, dbURL)
+			{{- else }}
+            conn := sqlx.MustConnect(config.{{range $idx, $itm := $targetmap}}{{if contains $itm "Driver"}}{{$itm}}(){{end}}{{end}}, trimFirstRune(dbURL))
+            {{- end}}
+            conn.SetMaxOpenConns(32)
+			logger.Info("connected to the {{lower $name}} database")
+
+            {{ if or (contains $target "Postgres")}}
+            //Check if database is running
+			//if err := client.waitForDB(ctx); err != nil {
+			//	return nil, errors.Wrap(err, "datasources.Ping: could not ping to database")
+			//}
+
+			//Do database migration
+			if err := client.migrateDb(ctx, logger, config); err != nil {
+				return nil, errors.Wrap(err, "datasources.Migrate: could not migrate database")
+			}
+            {{end -}}
+            
+
+        	client = &{{$target}}{logger: logger, config: config, client: conn}
+            return client, nil
+            {{- end}}
+            {{ if or (contains $target "Scylla")}}
+            logger.Info("trying to connect to the database")
+            //Do database migration
+			if err := client.migrateDb(ctx, logger, config); err != nil {
+				return nil, errors.Wrap(err, "datasources.Migrate: could not migrate to scylla database")
+			}
+
+            clientSession, err := gocql.NewSession(Config(config))
+			if err != nil {
+				return nil, errors.Wrap(err, "datasources.Ping: could not create new session")
+			}
+			cfg := Config(config)
+			cfg.Keyspace = config.Keyspace()
+			// fmt.Printf("cfg.Keyspace: %v\n", cfg.Keyspace)
+			clientSessionX, err := gocqlx.WrapSession(cfg.CreateSession())
+			if err != nil {
+				return nil, errors.Wrap(err, "datasources.Ping: could not create wrapped session")
+			}
+            client = &{{$target}}{logger: logger, config: config, clientSession: clientSession, clientx: &clientSessionX}
+            return client, nil
+			logger.Info("connected to the {{lower $name}} database")
+            {{end -}}
+            {{ if or (contains $target "Redis")}}
+            logger.Info("trying to connect to the cache")
+            pool := redis.NewClient(rdb)
+
+			result, err := pool.Ping(ctx).Result()
+			if err == nil && result == "PONG" {
+				logger.Info("connected to the cache")
+
+				cache := cache.New(&cache.Options{
+					Redis:        pool,
+					LocalCache:   cache.NewTinyLFU(1000, time.Minute),
+					StatsEnabled: "dev" == "dev",
+				})
+
+                client = &{{$target}}{logger: logger, config: config, client: pool, Cache: cache}
+                return client, nil
+			}
+			logger.Info("connected to the {{lower $name}} database")
+            {{end -}}
+        }
+    }
+
+    {{else}}{{if eq $key "Health" -}}//{{$key}}
+    delay := time.NewTicker(100 * time.Millisecond)
+	timeoutExceeded := time.After(300 * time.Millisecond)
+    for {
+		select {
+		case {{lthan}}-timeoutExceeded:
+            return util.NewError("database failed: timeoutExceeded")
+        case {{lthan}}-delay.C:
+            err := func() error {
+                {{- if or (contains $target "Postgres") (contains $target "Monet")}}
+                if int32({{$methodvar}}.client.Stats().OpenConnections) {{lthan}} int32(1) {
+					return util.NewError("open connections size below minimum")
+				}
+                //Check if database is running
+                if err := {{$methodvar}}.waitForDB(ctx); err != nil {
+					return errors.Wrap(err, "datasources.Ping: could not ping to database")
+				}
+                {{end -}}
+
+                if err := ctx.Err(); err != nil {
+					return err
+				}
+                var ok bool
+                _ = ok
+                //{{$methodvar}}
+                {{if or (contains $target "Postgres") (contains $target "Monet") -}}
+                if err := {{$methodvar}}.client.GetContext(ctx, &ok, `SELECT true;`); !ok || err != nil {
+					return errors.Wrap(err, "datasources.{{$key}}: SELECT true;")
+				}
+                {{else}}{{if or (contains $target "Scylla") -}}
+                if err := {{$methodvar}}.clientSession.Query("SELECT true").Scan(&ok); !ok || err != nil {
+					return errors.Wrap(err, "datasources.{{$key}}: SELECT true;")
+				}
+                {{end -}}{{end -}}
+
+                {{- if or (contains $target "Redis")}}
+                //Check if database is running
+                if err := {{$methodvar}}.waitForDB(ctx); err != nil {
+					return errors.Wrap(err, "datasources.Ping: could not ping to database")
+				}
+                {{end -}}
+                if err := ctx.Err(); err != nil {
+					return err
+				}
+                return nil
+            }()
+            if err != nil {
+				return util.NewError("failed: delay case").Wrap(err)
+			}
+			return nil
+        }
+    }
+    {{else}}{{if eq $key "Transaction" -}}//{{$key}}
+    {{- if or (contains $target "Postgres")}}
+    if ctx.Value(CONTEXT_TRANSACTION_KEY) != nil {
+		err := fn(ctx)
+		if err != nil {
+			return util.NewError("database transaction failed").WrapWithDepth(1, err)
+		}
+		return nil
+	}
+
+	transaction, err := {{$methodvar}}.client.BeginTx(ctx, nil)
+	if err != nil {
+		return util.NewError("database transaction failed").WrapWithDepth(1, err)
+	}
+
+	if err := ctx.Err(); err != nil {
+		return util.NewError("database transaction failed").WrapWithDepth(1, err)
+	}
+
+	defer func() {
+		if pan := recover(); pan != nil {
+			_ = transaction.Rollback()
+			panic(pan)
+		}
+	}()
+
+	err = fn(context.WithValue(ctx, CONTEXT_TRANSACTION_KEY, transaction))
+	if err != nil {
+		errR := transaction.Rollback()
+		if errR == nil {
+			return util.NewError("database transaction failed").AsWithDepth(1, err)
+		}
+
+		err := errors.CombineErrors(err, errR)
+		return util.NewError("database transaction failed").WrapWithDepth(1, err)
+	}
+
+	if err := ctx.Err(); err != nil {
+		errR := transaction.Rollback()
+		err := errors.CombineErrors(err, errR)
+		return util.NewError("database transaction failed").WrapWithDepth(1, err)
+	}
+
+	if err := transaction.Commit(); err != nil {
+		errR := transaction.Rollback()
+		err := errors.CombineErrors(err, errR)
+		return util.NewError("database transaction failed").WrapWithDepth(1, err)
+	}
+
+	if err := ctx.Err(); err != nil {
+		errR := transaction.Rollback()
+		err := errors.CombineErrors(err, errR)
+		return util.NewError("database transaction failed").WrapWithDepth(1, err)
+	}
+    return nil
+    {{end}}
+    {{- if or (contains $target "Postgres") (contains $target "Redis") (contains $target "Scylla") (contains $target "Monet")}}
+    return nil
+    {{- end}}
+    {{else}}{{if eq $key "migrateDb" -}}//{{$key}}
+    {{- if (contains $target "Postgres") }}
+    sourceInstance, err := iofs.New(fs, "migrations")
+	if err != nil {
+		return err
+	}
+    
+    db = {{$methodvar}}.client
+
+	driver, err := postgres.WithInstance(db, &postgres.Config{})
+	if err != nil {
+		return errors.Wrap(err, "connecting to database")
+	}
+    migrator, err := migrate.NewWithInstance("iofs", sourceInstance, "postgres", driver)
+	if err != nil {
+		return errors.Wrap(err, "creating migrator")
+	}
+    if err := migrator.Up(); err != nil && err != migrate.ErrNoChange {
+		return errors.Wrap(err, "executing up migration")
+	}
+
+	version, dirty, err := migrator.Version()
+	if err != nil {
+		return errors.Wrap(err, "getting migration version")
+	}
+	logrus.WithFields(logrus.Fields{
+		"version": version,
+		"dirty":   dirty,
+	}).Debug("database migrated")
+    return sourceInstance.Close()
+    {{end}}
+    {{- if or (contains $target "Redis") (contains $target "Monet")}}
+    return nil
+    {{- end}}
+    {{- if or (contains $target "Scylla")}}
+    KeySpaceCQL := fmt.Sprintf(`CREATE KEYSPACE IF NOT EXISTS %s WITH replication = { 'class': '%s', 'replication_factor': '%d' } AND durable_writes = %t;`, 
+    config.{{range $idx, $itm := $targetmap}}{{if contains $itm "Keyspace"}}{{$itm}}(){{end}}{{end}}, 
+    config.{{range $idx, $itm := $targetmap}}{{if contains $itm "Class"}}{{$itm}}(){{end}}{{end}}, 
+    config.{{range $idx, $itm := $targetmap}}{{if contains $itm "ReplicationFactor"}}{{$itm}}(){{end}}{{end}}, 
+    config.{{range $idx, $itm := $targetmap}}{{if contains $itm "DurableWrites"}}{{$itm}}(){{end}}{{end}},
+    )
+	//const KeySpaceCQL = "CREATE KEYSPACE IF NOT EXISTS propertylisting WITH replication = { 'class': 'NetworkTopologyStrategy', 'replication_factor': '3' } AND durable_writes = TRUE;"
+	// fmt.Printf("KeySpaceCQL: %v\n", KeySpaceCQL)
+	// fmt.Printf("config.Keyspace(): %v\n", config.Keyspace())
+	mig := config.{{range $idx, $itm := $targetmap}}{{if contains $itm "MigrationDir"}}{{$itm}}(){{end}}{{end}}
+
+	createKeyspace(KeySpaceCQL, config, logger)
+	migrateKeyspace(ctx, config.{{range $idx, $itm := $targetmap}}{{if contains $itm "Keyspace"}}{{$itm}}(){{end}}{{end}}, config, mig, logger)
+	printKeyspaceMetadata(config.{{range $idx, $itm := $targetmap}}{{if contains $itm "Keyspace"}}{{$itm}}(){{end}}{{end}}, config, logger)
+
+	return nil
+    {{- end}}
+    {{else}}{{if eq $key "waitForDB" -}}//{{$key}}
+    {{- if or (contains $target "Postgres") (contains $target "Monet") (contains $target "Redis")}}
+    ready := make(chan struct{})
+	go func() {
+		for {
+			if err := {{$methodvar}}.client.Ping(); err == nil {
+				close(ready)
+				return
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+	}()
+	select {
+	case {{lthan}}-ready:
+		return nil
+	case {{lthan}}-time.After(time.Duration(*{{$methodvar}}.config.{{range $idx, $itm := $targetmap}}{{if contains $itm "Timeout"}}{{$itm}}(){{end}}{{end}}) * time.Millisecond):
+		return errors.New("database not ready")
+	}
+    {{end}}
+    {{- if (contains $target "Scylla") }}
+    return nil
+    {{end}}
+    {{- if (contains $target "Redis") }}
+    return nil
+    {{end}}
+
+    {{else}}//{{$key}}
+    {{- if (contains $target "Scylla") }}
+    return {{$methodvar}}.clientx
+    {{else}}
+    return {{$methodvar}}.client
+    {{end}}
+    {{end -}}{{end -}}{{end -}}{{end -}}{{end }}
+} {{end}}{{end }} 
+{{end}}
+
+{{if contains $name "Monet"}}
+func trimFirstRune(s string) string {
+	_, i := utf8.DecodeRuneInString(s)
+	return s[i+1:]
+}
+{{end}}
+
+{{if contains $name "Scylla"}}
+func Config(config *config.{{$target}}) gocql.ClusterConfig {
+	configf.DB = *gocql.NewCluster()
+
+	configf.DB.Consistency = gocql.LocalOne
+	configf.DB.PoolConfig.HostSelectionPolicy = gocql.TokenAwareHostPolicy(gocql.RoundRobinHostPolicy())
+	configf.DB.Hosts = config.{{range $idx, $itm := $targetmap}}{{if contains $itm "ScyllaHosts"}}{{$itm}}(){{end}}{{end}}
+	configf.DB.Timeout = 60 * time.Second
+	configf.DB.ConnectTimeout = 5 * time.Second
+	configf.Password.Username = ""
+	configf.Password.Username = ""
+
+	if configf.Password.Username != "" {
+		configf.DB.Authenticator = configf.Password
+	}
+	var t = configf.DB
+	if configf.Password.Username != "" {
+		t.Authenticator = configf.Password
+	}
+	return t
+}
+
+// Session returns new session
+func Session(config *config.{{$target}}) (*gocql.Session, error) {
+	return gocql.NewSession(Config(config))
+}
+
+// Keyspace returns new session with specified keyspace
+func Keyspacef(keySpace string, config *config.{{$target}}) (gocqlx.Session, error) {
+	cfg := Config(config)
+	cfg.Keyspace = keySpace
+	return gocqlx.WrapSession(gocql.NewSession(cfg))
+}
+
+func createKeyspace(KeySpaceCQL string, cfg *config.{{$target}}, logger *util.Logger) {
+	ses, err := Session(cfg)
+	if err != nil {
+		logger.Fatalf("session: ", err)
+	}
+	defer ses.Close()
+
+	if err := ses.Query(KeySpaceCQL).Exec(); err != nil {
+		logger.Infof("ensure keyspace exists: %v", err)
+	}
+}
+
+func migrateKeyspace(ctx context.Context, keySpace string, config *config.{{$target}}, mig string, logger *util.Logger) {
+	sesx, err := Keyspacef(keySpace, config)
+	if err != nil {
+		logger.Fatalf("session: ", err)
+	}
+	defer sesx.Close()
+	if err := cqlMigrate.FromFS(context.Background(), sesx, cqlmigrations.Files); err != nil {
+		logger.Infof("migrate: %v", err)
+	}
+}
+
+func printKeyspaceMetadata(keyspace string, config *config.{{$target}}, logger *util.Logger) {
+	sesx, err := Keyspacef(keyspace, config)
+	if err != nil {
+		logger.Fatalf("session: ", err)
+	}
+
+	defer sesx.Close()
+
+	m, err := sesx.KeyspaceMetadata(keyspace)
+	if err != nil {
+		logger.Infof("keyspace metadata: %v", err)
+	}
+
+	logger.Printf("Keyspace metadata = %+v\n", m)
+}
+{{end}}

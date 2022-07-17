@@ -1,0 +1,93 @@
+package config
+
+{{$projectName := .ProductSource -}}
+{{$companyName := .Company -}}
+
+{{$type := .ProductTargets.ProductFileTypeFrom}}
+type Config struct{
+{{range $index, $values := .ProductTargets.Config -}}
+{{- range $key, $value := $values }}
+    {{$key }} {{if (ne ( $value | typeOfVar) "string") -}}
+     {{if (eq ( $value | typeOfVar) "[]map[string]interface {}") -}}{{$key}}Config `yaml:"{{$key }}"`
+     {{- else}} []*{{$key}}Config `yaml:"{{$key -}}"`{{end}}
+     {{- else -}} {{if or (eq $value "True") (eq $value "False") -}} 
+        {{(toOutPutDataTypeYaml $value $type) | typeOfVar}} `yaml:"{{$key -}}"`
+     {{- else -}}{{($value | stringToInt) | typeOfVar}} `yaml:"{{$key -}}"`
+    {{end}}{{- end}}
+{{- end }}
+{{- end }}
+}
+
+{{range $index, $values := .ProductTargets.Config -}}
+{{range $key, $value := $values -}}
+type {{$key}}Config struct{
+    {{ if (ne ( $value | typeOfVar) "string") -}}
+    {{ if and (ne ( $value | typeOfVar) "string") (eq ( $value | typeOfVar) "[]map[string]interface {}") -}}
+    {{range $k, $v := $value -}}
+    {{range $kfinal, $vfinal := $v }} {{lowerTitle $kfinal }} {{if eq ($vfinal | typeOfVar) "string"}}{{((toOutPutDataTypeYaml $vfinal $type) | typeOfVar ) }}{{else}}{{$vfinal | typeOfVar}} {{end}}{{end}}
+    {{end }}
+    {{ else }}{{ range $kfinal, $vfinal := $value -}}
+    {{ range $kffinal, $vffinal := $vfinal -}}
+    {{ if eq $kfinal 0 -}}
+    {{ range $final_idx, $final_it := $vffinal}}
+    {{ range $ki, $vi := $final_it -}} {{lowerTitle $ki }} {{if eq ($vi | typeOfVar) "string"}}{{((toOutPutDataTypeYaml $vi $type) | typeOfVar ) }}{{else}}{{$vi | typeOfVar}} {{end}}{{ end -}}{{ end -}}
+    {{- end }}{{ end }}{{ end }}
+    {{- end}}
+    {{else}}{{- if (eq ( $value | typeOfVar) "string") }}{{ lowerTitle $key }}
+    {{- if or (eq $value "True") (eq $value "False") }} {{   ((toOutPutDataTypeYaml $value $type) | typeOfVar) -}} 
+    {{ else }} {{ (($value | stringToInt) | typeOfVar)}} 
+    {{end -}} {{end -}}
+    {{end}}
+}
+{{end}}
+{{end}}
+
+
+
+
+type configRead struct{
+{{range $index, $values := .ProductTargets.Config -}}
+{{- range $key, $value := $values }}
+    {{$key }} {{if (ne ( $value | typeOfVar) "string") -}}
+     {{if (eq ( $value | typeOfVar) "[]map[string]interface {}") -}}*{{lowerTitle $key}}ConfigRead `yaml:"{{$key }}"`
+     {{- else}} {{lowerTitle $key}}ConfigReadMap `yaml:"{{$key -}}"`{{end}}
+     {{- else -}} {{if or (eq $value "True") (eq $value "False") -}} 
+        *{{(toOutPutDataTypeYaml $value $type) | typeOfVar}} `yaml:"{{$key -}}"`
+     {{- else -}}*{{($value | stringToInt) | typeOfVar}} `yaml:"{{$key -}}"`
+    {{end}}{{- end}}
+{{- end}}
+{{- end}}
+}
+
+{{range $index, $values := .ProductTargets.Config -}}
+{{range $key, $value := $values -}}
+type {{lowerTitle $key}}ConfigRead struct{
+    {{ if (ne ( $value | typeOfVar) "string") -}}
+    {{ if and (ne ( $value | typeOfVar) "string") (eq ( $value | typeOfVar) "[]map[string]interface {}") -}}
+    {{range $k, $v := $value -}}
+    {{range $kfinal, $vfinal := $v }} {{ $kfinal }} {{if eq ($vfinal | typeOfVar) "string"}}*{{((toOutPutDataTypeYaml $vfinal $type) | typeOfVar ) }}{{else}}{{$vfinal | typeOfVar}} {{end}} `yaml:"{{$kfinal -}}"`{{end}}
+    {{end }}
+    {{ else }}{{- range $kfinal, $vfinal := $value -}}
+    {{ range $kffinal, $vffinal := $vfinal -}}
+    {{ if eq $kfinal 0 -}}
+    {{ range $final_idx, $final_it := $vffinal }}
+    {{ range $ki, $vi := $final_it -}} {{ $ki }} {{if eq ($vi | typeOfVar) "string"}}*{{((toOutPutDataTypeYaml $vi $type) | typeOfVar ) }}{{else}}{{$vi | typeOfVar}} {{end}} `yaml:"{{$ki -}}"`{{ end }}{{ end }}
+    {{- end }}{{ end }}{{ end }}
+    {{- end}}
+    {{else}}{{- if (eq ( $value | typeOfVar) "string") }}{{$key }}
+    {{- if or (eq $value "True") (eq $value "False") }} {{   ((toOutPutDataTypeYaml $value $type) | typeOfVar) -}} 
+    `yaml:"{{$key -}}"`
+    {{ else }} {{lowerTitle (($value | stringToInt) | typeOfVar)}} `yaml:"{{$key -}}"`
+    {{end -}} {{end -}}
+    {{end}}
+}
+{{end}}
+{{end}}
+
+{{range $index, $values := .ProductTargets.Config -}}
+{{range $key, $value := $values -}}
+{{if (ne ( $value | typeOfVar) "string") -}}
+{{if (eq ( $value | typeOfVar) "[]map[string][]map[string]interface {}") -}}
+type {{lowerTitle $key}}ConfigReadMap map[string]{{lowerTitle $key}}ConfigRead
+{{end}}{{end}}{{end}}
+{{end}}

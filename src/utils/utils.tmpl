@@ -1,0 +1,480 @@
+package util
+
+{{$target := index .ProductTargets.DSource.DBS 0 -}}
+{{$name := replace $target "DBClients" "" -}}
+{{$projectName := .ProductSource -}}
+{{$companyName := .Company -}}
+
+{{/*
+=======================================
+|| HELPERS.go                        ||
+=======================================
+*/}}
+{{if contains $target "helpers" -}}
+import (
+	"crypto/ed25519"
+	"os"
+	"time"
+	"os/exec"
+
+
+	"github.com/{{$companyName}}/{{$projectName}}/src/util"
+)
+func C_WFile(content, filename string) {
+	f, createErr := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	// f, createErr := os.Create(filename)
+	if createErr != nil {
+		logger.Error("cannot create file:", createErr)
+	}
+	defer f.Close()
+
+	_, writeErr := f.WriteString(time.Now().Format("2006-01-02 15:04:05") + "|" + content + "\n")
+	if writeErr != nil {
+		logger.Error("cannot write to file:", writeErr)
+	}
+}
+func C_WFile2(content ed25519.PublicKey, filename string) {
+	f, createErr := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	// f, createErr := os.Create(filename)
+	if createErr != nil {
+		logger.Error("cannot create file:", createErr)
+	}
+	defer f.Close()
+
+	_, writeErr := f.Write(content)
+	if writeErr != nil {
+		logger.Error("cannot write to file:", writeErr)
+	}
+}
+func ExecCmd(cmd string, args []string, logger *util.Logger) {
+	output, err := executeCommand(cmd, args, logger)
+	if err != nil {
+		logger.Printf("bash shell command error: %v", err.Error())
+	}
+	logger.Infof("o: %v\n", output)
+}
+
+// https://pkg.go.dev/os/exec#Cmd.StdinPipe
+func executeCommand(cmd string, args []string, logger *util.Logger) (string, error) {
+	cmd_obj := exec.Command(cmd, args...)
+	out, err := cmd_obj.Output()
+	if err != nil {
+		logger.Errorf("Output error: %v", err.Error())
+	}
+	return string(out), nil
+}
+func GreetingsMaker() string {
+
+	hours, _, _ := time.Now().Clock()
+	hourString := fmt.Sprintf("%d", hours)
+
+	// fmt.Sprintf("%s", hours)
+	// fmt.Println("hourString: ", hourString)
+	hourInt, err := strconv.Atoi(hourString)
+	if err != nil {
+		return err.Error()
+	}
+	// fmt.Println("hourInt: ", hourInt)
+
+	if hourInt >= 1 && hourInt {{lthan}}= 12 {
+		return "Good Morning"
+	} else if hourInt >= 12 && hourInt {{lthan}}= 16 {
+		return "Good Afternoon"
+	} else if hourInt >= 16 && hourInt {{lthan}}= 21 {
+		return "Good Evening"
+	} else if hourInt >= 21 && hourInt {{lthan}}= 24 {
+		return "Good Evening"
+	}
+
+	return "Hello"
+
+}
+{{end}}
+/*
+=======================================
+|| CONTEXT.go                        ||
+=======================================
+*/
+{{if contains $target "context" -}}
+type key int
+
+const (
+	// ContextOriginalPath holds the original requested URL.
+	ContextOriginalPath key = iota
+	// ContextRequestStart holds the request start time.
+	ContextRequestStart
+	// ContextDatabase holds a reference to a data.DB database connection and services.
+	ContextDatabase
+	// ContextAuth holds the authenticated user account id and user id.
+	ContextAuth
+	// ContextMinimumRole holds the minimum role to access this resource.
+	ContextMinimumRole
+	// ContextRequestID unique ID for the request.
+	ContextRequestID
+	// ContextRequestDump holds the request data dump.
+	ContextRequestDump
+	// ContextLanguage holds the request language.
+	ContextLanguage
+	// ContextContentIsJSON indicates if the request Content-Type is application/json
+	ContextContentIsJSON
+)
+{{end}}
+/*
+=======================================
+|| ULID.go                        ||
+=======================================
+*/
+{{if contains $target "ulid" -}}
+import (
+	"fmt"
+	"math/rand"
+	"time"
+
+	"github.com/oklog/ulid"
+)
+
+func New() Generator {
+	return &generator{}
+}
+type Generator interface {
+	Generate() string
+	Parse(ulid string) error
+}
+
+type generator struct{}
+
+func (g *generator) Generate() string {
+
+	// timestamp := strconv.FormatInt(time.Now().UTC().UnixNano(), 10)
+	// tstmp := time.Now().UTC().UnixNano()
+	t := time.Now().UTC()
+
+	// t := time.Unix(1000000, 0)
+	// fmt.Printf("timestamp: %v\n", timestamp)
+	entropy := ulid.Monotonic(rand.New(rand.NewSource(t.UnixNano())), 0)
+
+	return fmt.Sprint(ulid.MustNew(ulid.Timestamp(t), entropy)) //uuid.New().String()
+}
+
+func (g *generator) Parse(ulidStr string) error {
+	_, err := ulid.Parse(ulidStr) //uuid.Parse(uuidStr)
+	return err
+}
+
+{{end -}}
+/*
+=======================================
+|| ERRORS.go                        ||
+=======================================
+*/
+{{if contains $target "errors" -}}
+	import "github.com/cockroachdb/errors"
+
+type Error struct {
+	message string
+	inner   error
+}
+
+func NewError(message string) func() *Error {
+	return func() *Error {
+		return &Error{
+			message: message,
+			inner:   errors.NewWithDepth(1, message),
+		}
+	}
+}
+
+// /home/godev/go/src//error.go
+func (self *Error) Wrap(err error) *Error {
+	self.inner = errors.WrapWithDepth(1, err, self.message)
+	return self
+}
+
+func (self *Error) WrapWithDepth(depth int, err error) *Error {
+	self.inner = errors.WrapWithDepth(depth+1, err, self.message)
+	return self
+}
+
+func (self *Error) As(err error) *Error {
+	if other, ok := err.(*Error); ok {
+		self.message = other.message
+	} else {
+		self.message = err.Error()
+	}
+	self.inner = errors.WrapWithDepth(1, err, self.message)
+	return self
+}
+
+func (self *Error) AsWithDepth(depth int, err error) *Error {
+	if other, ok := err.(*Error); ok {
+		self.message = other.message
+	} else {
+		self.message = err.Error()
+	}
+	self.inner = errors.WrapWithDepth(depth+1, err, self.message)
+	return self
+}
+
+func (self Error) Error() string {
+	return self.Unwrap().Error()
+}
+
+func (self Error) Unwrap() error {
+	return self.inner
+}
+
+func (self Error) Is(err error) bool {
+	if other, ok := err.(*Error); ok {
+		return self.message == other.message
+	}
+
+	return false
+}
+{{- end -}}
+/*
+=======================================
+|| LOGGER.go                        ||
+=======================================
+*/
+{{if contains $target "logger" -}}
+	import (
+	"context"
+	"fmt"
+	"io"
+	"os"
+	"time"
+
+	"github.com/{{$companyName}}/{{$projectName}}/src/config"
+	
+	// "github.com/{{$companyName}}/{{$projectName}}/src/util"
+	"github.com/jackc/pgx/v4"
+	gommon "github.com/labstack/gommon/log"
+
+	// "github.com/neoxelox/odin/internal"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/diode"
+)
+
+var (
+	ZlevelToGlevel = map[zerolog.Level]gommon.Lvl{
+		zerolog.DebugLevel: gommon.DEBUG,
+		zerolog.InfoLevel:  gommon.INFO,
+		zerolog.WarnLevel:  gommon.WARN,
+		zerolog.ErrorLevel: gommon.ERROR,
+		zerolog.Disabled:   gommon.OFF,
+	}
+
+	GlevelToZlevel = map[gommon.Lvl]zerolog.Level{
+		gommon.DEBUG: zerolog.DebugLevel,
+		gommon.INFO:  zerolog.InfoLevel,
+		gommon.WARN:  zerolog.WarnLevel,
+		gommon.ERROR: zerolog.ErrorLevel,
+		gommon.OFF:   zerolog.Disabled,
+	}
+
+	ZlevelToPlevel = map[zerolog.Level]pgx.LogLevel{
+		zerolog.TraceLevel: pgx.LogLevelTrace,
+		zerolog.DebugLevel: pgx.LogLevelDebug,
+		zerolog.InfoLevel:  pgx.LogLevelInfo,
+		zerolog.WarnLevel:  pgx.LogLevelWarn,
+		zerolog.ErrorLevel: pgx.LogLevelError,
+		zerolog.Disabled:   pgx.LogLevelNone,
+	}
+
+	PlevelToZlevel = map[pgx.LogLevel]zerolog.Level{
+		pgx.LogLevelTrace: zerolog.TraceLevel,
+		pgx.LogLevelDebug: zerolog.DebugLevel,
+		pgx.LogLevelInfo:  zerolog.InfoLevel,
+		pgx.LogLevelWarn:  zerolog.WarnLevel,
+		pgx.LogLevelError: zerolog.ErrorLevel,
+		pgx.LogLevelNone:  zerolog.Disabled,
+	}
+)
+
+type Logger struct {
+	configuration config.Config
+	logger        zerolog.Logger
+	level         zerolog.Level
+	out           io.Writer
+	prefix        string
+	header        string
+	verbose       bool
+}
+
+func NewLogger(configuration config.Config) *Logger {
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	zerolog.TimestampFieldName = "timestamp"
+	zerolog.CallerSkipFrameCount = 3
+
+	level := zerolog.DebugLevel
+	// if "dev" != configuration {
+	// 	level = zerolog.InfoLevel
+	// }
+
+	out := diode.NewWriter(os.Stderr, 1000, 10*time.Millisecond, func(missed int) {
+		fmt.Fprintf(os.Stderr, "Logger dropped %!d(MISSING) messages", missed)
+	})
+
+	return &Logger{
+		configuration: configuration,
+		logger:        zerolog.New(out).With().Str("service", configuration.HttpServer.ServerName()).Timestamp().Logger().Level(level),
+		level:         level,
+		out:           out,
+		prefix:        configuration.HttpServer.ServerName(),
+		header:        "",
+		verbose:       level == zerolog.DebugLevel,
+	}
+}
+
+func (logg Logger) Logger() *zerolog.Logger {
+	return &logg.logger
+}
+
+func (logg *Logger) SetLogger(l zerolog.Logger) {
+	logg.logger = l
+}
+
+func (logg Logger) Flush() {
+	os.Stderr.Sync()
+}
+
+func (logg Logger) Close(ctx context.Context) error {
+	logg.Flush()
+	dw, _ := logg.out.(diode.Writer)
+	return dw.Close()
+}
+
+func (logg Logger) Output() io.Writer {
+	return logg.out
+}
+
+func (logg *Logger) SetOutput(w io.Writer) {
+	logg.logger = logg.logger.Output(w)
+	logg.out = w
+}
+
+func (logg Logger) Prefix() string {
+	return logg.prefix
+}
+
+func (logg *Logger) SetPrefix(p string) {
+	logg.prefix = p
+}
+
+func (logg Logger) GLevel() gommon.Lvl {
+	return ZlevelToGlevel[logg.level]
+}
+
+func (logg *Logger) SetGLevel(l gommon.Lvl) {
+	zlevel := GlevelToZlevel[l]
+	logg.logger = logg.logger.Level(zlevel)
+	logg.level = zlevel
+}
+
+func (logg Logger) PLevel() pgx.LogLevel {
+	return ZlevelToPlevel[logg.level]
+}
+
+func (logg *Logger) SetPLevel(l pgx.LogLevel) {
+	zlevel := PlevelToZlevel[l]
+	logg.logger = logg.logger.Level(zlevel)
+	logg.level = zlevel
+}
+
+func (logg Logger) ZLevel() zerolog.Level {
+	return logg.level
+}
+
+func (logg *Logger) SetZLevel(l zerolog.Level) {
+	zlevel := l
+	logg.logger = logg.logger.Level(zlevel)
+	logg.level = zlevel
+}
+
+func (logg *Logger) Header() string {
+	return logg.header
+}
+
+func (logg *Logger) SetHeader(h string) {
+	logg.header = h
+}
+
+func (logg Logger) Verbose() bool {
+	return logg.verbose
+}
+
+func (logg Logger) SetVerbose(v bool) {
+	logg.verbose = v
+}
+
+func (logg Logger) Print(i ...interface{}) {
+	logg.logger.Log().Msg(fmt.Sprint(i...))
+}
+
+func (logg Logger) Printf(format string, i ...interface{}) {
+	logg.logger.Log().Msgf(format, i...)
+}
+
+func (logg Logger) Debug(i ...interface{}) {
+	logg.logger.Debug().Msg(fmt.Sprint(i...))
+}
+
+func (logg Logger) Debugf(format string, i ...interface{}) {
+	logg.logger.Debug().Msgf(format, i...)
+}
+
+func (logg Logger) Info(i ...interface{}) {
+	logg.logger.Info().Msg(fmt.Sprint(i...))
+}
+
+func (logg Logger) Infof(format string, i ...interface{}) {
+	logg.logger.Info().Msgf(format, i...)
+}
+
+func (logg Logger) Warn(i ...interface{}) {
+	logg.logger.Warn().Msg(fmt.Sprint(i...))
+}
+
+func (logg Logger) Warnf(format string, i ...interface{}) {
+	logg.logger.Warn().Msgf(format, i...)
+}
+
+func (logg Logger) Error(i ...interface{}) {
+	if !logg.configuration.IsDev { //logg.configuration.Environment == internal.Environment.PRODUCTION {
+		logg.logger.Error().Msg(fmt.Sprint(i...))
+	} else {
+		if i != nil {
+			if len(i) == 1 {
+				err, _ := i[0].(error)
+				if ierr, ok := i[0].(*Error); ok {
+					err = ierr.Unwrap()
+				}
+				fmt.Printf("%!v(MISSING)\n", err)
+			} else {
+				fmt.Printf("%!v(MISSING)\n", i...)
+			}
+		}
+	}
+}
+
+func (logg Logger) Errorf(format string, i ...interface{}) {
+	logg.logger.Error().Msgf(format, i...)
+}
+
+func (logg Logger) Fatal(i ...interface{}) {
+	logg.logger.Fatal().Msg(fmt.Sprint(i...))
+}
+
+func (logg Logger) Fatalf(format string, i ...interface{}) {
+	logg.logger.Fatal().Msgf(format, i...)
+}
+
+func (logg Logger) Panic(i ...interface{}) {
+	logg.logger.Panic().Msg(fmt.Sprint(i...))
+}
+
+func (logg Logger) Panicf(format string, i ...interface{}) {
+	logg.logger.Panic().Msgf(format, i...)
+}
+
+{{- end -}}

@@ -1,0 +1,70 @@
+package config
+
+{{$projectName := .ProductSource -}}
+{{$companyName := .Company -}}
+
+{{$type := .ProductTargets.ProductFileTypeFrom}}
+func (c Config) MarshalYAML() (interface{}, error){
+    return configRead{
+{{range $index, $values := .ProductTargets.Config -}}
+{{- range $key, $value := $values }}
+        {{$key }}: {{if (ne ( $value | typeOfVar) "string") -}}
+        {{if (eq ( $value | typeOfVar) "[]map[string]interface {}") -}} func() *{{lowerTitle $key}}ConfigRead {
+            if !c.{{$key }}.{{- range $k, $v := $value -}}
+            {{- range $kit, $vit := $v -}}{{if contains $kit "Enabled"}}{{$kit}}{{end}}{{end}}{{end}}() {
+                    return nil
+                }
+                r := c.{{$key }}.convertToRead()
+                return &r
+        }(), 
+        {{- else}}func() {{lowerTitle $key}}ConfigReadMap {
+            {{lowerTitle $key }}:= make({{lowerTitle $key}}ConfigReadMap, len(c.{{$key }}))
+                for _, c := range c.{{$key }} {
+                    if !c.
+                    {{- range $k, $v := $value -}}{{- range $kit, $vit := $v -}}
+                    {{ if eq $k 0 -}}{{- range $kkit, $vvit := $vit -}}{{- range $kf, $vf := $vvit -}}
+                    {{if contains $kf "Enabled"}}{{$kf}}{{end}}{{end}}{{end}}{{end}}{{end}}{{end}}() {
+                        return nil
+                    }
+                    {{lowerTitle $key }}[c.
+                    {{- range $k, $v := $value -}}{{- range $kit, $vit := $v -}}
+                    {{ if eq $k 0 -}}{{- range $kkit, $vvit := $vit -}}{{- range $kf, $vf := $vvit -}}
+                    {{if contains $kf "Name"}}{{$kf}}{{end}}{{end}}{{end}}{{end}}{{end}}{{end}}()] = c.convertToRead()
+                }
+            return {{lowerTitle $key }}
+        }(),   {{end}}
+        {{- else -}} {{if or (eq $value "True") (eq $value "False") -}} 
+            &c.{{$key}}, 
+        {{- else -}}&c.{{$key}}, 
+        {{end}}{{- end}}
+{{- end }}
+{{- end }}
+    }, nil
+}
+
+{{range $index, $values := .ProductTargets.Config -}}
+{{range $key, $value := $values -}}
+func ({{lowerTitle (initials $key)}} {{$key}}Config) convertToRead() {{lowerTitle $key}}ConfigRead {
+    return {{lowerTitle $key -}}ConfigRead{
+        {{ if (ne ( $value | typeOfVar) "string") -}}
+        {{ if and (ne ( $value | typeOfVar) "string") (eq ( $value | typeOfVar) "[]map[string]interface {}") -}}
+        {{range $k, $v := $value -}}
+        {{range $kfinal, $vfinal := $v -}} 
+        {{$kfinal}}: {{if eq ($vfinal | typeOfVar) "string"}}&{{lowerTitle (initials $key)}}.{{lowerTitle $kfinal }}, {{else}}{{lowerTitle (initials $key)}}.{{lowerTitle $kfinal }},{{end}}{{end}}
+        {{end }}
+        {{ else }}{{ range $kfinal, $vfinal := $value -}}
+        {{ range $kffinal, $vffinal := $vfinal -}}
+        {{ if eq $kfinal 0 -}}
+        {{ range $final_idx, $final_it := $vffinal}}
+        {{ range $ki, $vi := $final_it -}}{{$ki}}: {{if eq ($vi | typeOfVar) "string"}}&{{lowerTitle (initials $key)}}.{{lowerTitle $ki }}, {{else}}{{lowerTitle (initials $key)}}.{{lowerTitle $ki }},{{ end -}}{{ end -}}{{ end -}}
+        {{ end -}}{{ end -}}{{ end -}}
+        {{ end -}}
+        {{else}}{{- if (eq ( $value | typeOfVar) "string") }}{{ $key}}: {{lowerTitle (initials $key)}}.{{ lowerTitle $key }},
+        {{- if or (eq $value "True") (eq $value "False") }} //{{   ((toOutPutDataTypeYaml $value $type) | typeOfVar) -}} 
+        {{ else }} //{{ (($value | stringToInt) | typeOfVar)}} 
+        {{end -}} {{end -}}
+        {{end}}
+    }
+}
+{{end}}
+{{end}}

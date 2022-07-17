@@ -1,0 +1,14 @@
+{{range $index, $item := .Enums -}} 
+    <brt>{{  .Name}} text,
+{{end -}}
+
+
+{{range $index, $item := .Enums -}} 
+    <brt>// {{title $stname }}{{title .Name -}} is an adminitrator of App. Root.
+    {{title $stname }}{{title .Name}} {{title $stname }} = "{{ .Name -}}"
+{{end -}}
+
+{{- range $index, $item := .Enums -}} 
+    <brt>// {{title $stname }}{{title .Name}} is an...
+    <brt>{{title .Name}} {{ .CustomType }} = "{{ .Name }}"
+{{end -}}

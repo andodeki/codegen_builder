@@ -1,0 +1,17 @@
+package main
+
+{{$target := index .ProductTargets.DSource.DBS 0 -}}
+{{$name := replace $target "DBClients" "" -}}
+{{$projectName := .ProductSource -}}
+{{$companyName := .Company}}
+
+{{if contains $target "main" -}}
+import (
+    "github.com/{{$companyName}}/{{$projectName}}/src/runsvc"
+)
+func main() {
+	cmdOptions, cmdName := runsvc.GetCmdOptions()
+	var conf = runsvc.GetConfig(cmdOptions, cmdName)
+	Application(conf, cmdOptions)
+}
+{{end}}

@@ -1,0 +1,212 @@
+package config
+
+{{$projectName := .ProductSource -}}
+{{$companyName := .Company}}
+
+import (
+	"fmt"
+	"io/ioutil"
+	"log"
+	"regexp"
+	"runtime"
+	"sort"
+	"strings"
+
+	"github.com/namsral/flag"
+	"github.com/pkg/errors"
+
+	"gopkg.in/yaml.v3"
+)
+func ReadConfigFile(exe, source string) (config Config, err []error) {
+	yamlStr, e := ioutil.ReadFile(source)
+	if e != nil {
+		return config, []error{fmt.Errorf("cannot read configuration: %v; use see `%s --help`", err, exe)}
+	}
+
+	return ReadConfig(yamlStr)
+}
+
+func ReadConfig(yamlStr []byte) (config Config, err []error) {
+	var configRead configRead
+
+	e := yaml.Unmarshal(yamlStr, &configRead)
+	if e != nil {
+		return config, []error{errors.Wrap(e, "cannot parse yaml: %")}
+	}
+
+	return configRead.TransformAndValidate()
+}
+
+func (c Config) PrintConfig() (err error) {
+	newYamlStr, err := yaml.Marshal(c)
+	if err != nil {
+		return errors.Wrap(err, "cannot encode yaml again: %v")
+	}
+	log.Print("config: use the following config:")
+	for _, line := range strings.Split(string(newYamlStr), "\n") {
+		log.Print("config: ", line)
+	}
+	return nil
+}
+
+/*func (c configRead) TransformAndValidate() (ret Config, err []error) {
+	var e []error
+
+}
+*/
+
+{{$type := .ProductTargets.ProductFileTypeFrom}}
+func (c configRead) TransformAndValidate() (ret Config, err []error) {
+	var e []error
+    {{range $index, $values := .ProductTargets.Config -}}
+    {{- range $key, $value := $values }}
+        {{if (ne ( $value | typeOfVar) "string") -}}
+        {{if (eq ( $value | typeOfVar) "[]map[string]interface {}") }}ret.{{$key }}, e = c.{{$key }}.TransformAndValidate()
+        err = append(err, e...)
+        {{ else}}ret.{{$key }}, e = c.{{$key }}.TransformAndValidate() 
+        err = append(err, e...)//[]*{{$key}}Config {{end }}
+        {{else -}} {{if or (eq $value "True") (eq $value "False") -}} 
+            if c.{{$key }} != nil && *c.{{$key }} {
+            ret.{{$key }} = *c.{{$key }}//{{(toOutPutDataTypeYaml $value $type) | typeOfVar}}
+        }
+        {{- else -}}
+        if c.{{$key }} == nil {
+            ret.{{$key }} = *c.{{$key }}//{{($value | stringToInt) | typeOfVar}}
+        } else {
+            ret.{{$key }} = *c.{{$key }}
+            if ret.{{$key }} != 0 {
+                err = append(err, fmt.Errorf("{{lower $key }}=%d is not supported", ret.{{$key }}))
+        }
+        {{end}}{{ end}}{{ end }}{{ end }}
+    }
+    return
+}
+
+{{range $index, $values := .ProductTargets.Config -}}
+{{range $key, $value := $values -}}       
+        {{ if (ne ( $value | typeOfVar) "string") -}}
+        {{ if and (ne ( $value | typeOfVar) "string") (eq ( $value | typeOfVar) "[]map[string]interface {}") -}}
+        {{range $k, $v := $value -}}
+        {{if eq $k 0}}{{range $kfinal, $vfinal := $v }}
+func ({{lowerTitle (initials $key)}} *{{lowerTitle $key}}ConfigRead) TransformAndValidate() (ret {{$key}}Config, err []error) {
+    if {{lowerTitle (initials $key)}} == nil {
+        return
+    }
+    if *{{lowerTitle (initials $key)}}.Enabled {
+        {{ range $knested, $vnested := $value -}}
+        {{ range $knests, $vnests := $vnested -}}
+            {{ if eq ($vnests | typeOfVar) "int" -}}
+        if ret.{{lowerTitle $knests }} {{lthan}} 1 {
+            ret.{{lowerTitle $knests }} = {{lowerTitle (initials $key)}}.{{$knests }}
+        }
+        if ret.{{lowerTitle $knests }} {{lthan}} 1 {
+            err = append(err, fmt.Errorf("{{$knests }}Config->%s->{{$knests }} must not be empty", {{lowerTitle (initials $key)}}.{{$kfinal }}))
+        }
+            {{ else -}}{{ if (ne ($vnests | typeOfVar) "[]string") -}}
+        {{ if or (ne ((toOutPutDataTypeYaml $vnests $type) | typeOfVar) "bool") (ne ((toOutPutDataTypeYaml $vnests $type) | typeOfVar) "bool") -}}
+        if len(ret.{{lowerTitle $knests }}) {{lthan}} 1 {
+            ret.{{lowerTitle $knests }} = *{{lowerTitle (initials $key)}}.{{ $knests }}
+        }
+        if len(ret.{{lowerTitle $knests }}) {{lthan}} 1 {
+            err = append(err, fmt.Errorf("{{$knests }}Config->%s->{{$knests }} must not be empty", {{lowerTitle (initials $key)}}.{{$kfinal }}))
+        }
+        {{ else -}}
+        if {{lowerTitle (initials $key)}}.{{ $knests }} != nil && *{{lowerTitle (initials $key)}}.{{ $knests }} {
+            ret.{{lowerTitle $knests }} = *{{lowerTitle (initials $key)}}.{{ $knests }}
+        }
+                {{ end -}}{{else -}}
+                {{if (eq ($vnests | typeOfVar) "[]string")}}
+        if len(ret.{{lowerTitle $knests }}) {{lthan}} 1 {
+            ret.{{lowerTitle $knests }} = *{{lowerTitle (initials $key)}}.{{ $knests }}
+        }
+        if len(ret.{{lowerTitle $knests }}) {{lthan}} 1 {
+            err = append(err, fmt.Errorf("{{$knests }}Config->%s->{{$knests }} must not be empty", c.{{$knests }}))
+        }
+            {{end -}}{{end -}}
+            {{end -}}
+            
+        {{end -}}
+        {{ end -}}
+
+        
+    }
+	return
+    //{{$kfinal}}: {{if eq ($vfinal | typeOfVar) "string"}}&{{lowerTitle (initials $key)}}.{{lowerTitle $kfinal }}, {{else}}{{lowerTitle (initials $key)}}.{{lowerTitle $kfinal }},{{end}}
+}{{end}}{{end}}{{end }}{{ else }}{{ range $kfinal, $vfinal := $value -}}
+        {{ range $kffinal, $vffinal := $vfinal -}}
+        {{ if eq $kfinal 0 -}}
+        {{ range $final_idx, $final_it := $vffinal -}}
+        {{if eq $final_idx 0}}{{ range $ki, $vi := $final_it -}}
+func ({{lowerTitle (initials $key)}} {{lowerTitle $key}}ConfigReadMap) TransformAndValidate() (ret []*{{$key}}Config, err []error) {
+    //if len({{lowerTitle (initials $key)}}) {{lthan}} 1 {
+		//return ret, []error{fmt.Errorf("{{$key}} section must no be empty")}
+	//}
+
+	ret = make([]*{{$key}}Config, len({{lowerTitle (initials $key)}}))
+	jj := 0
+	for _, name := range {{lowerTitle (initials $key)}}.getOrderedKeys() {
+		r, e := {{lowerTitle (initials $key)}}[name].TransformAndValidate(name)
+		ret[jj] = &r
+		err = append(err, e...)
+		jj++
+	}
+	return
+}
+func ({{lowerTitle (initials $key)}} {{lowerTitle $key}}ConfigRead) TransformAndValidate(name string) (ret {{$key}}Config, err []error) {
+	ret.enabled = *{{lowerTitle (initials $key)}}.Enabled
+	if *{{lowerTitle (initials $key)}}.Enabled {
+    //{{$ki}}: {{if eq ($vi | typeOfVar) "string"}}&{{lowerTitle (initials $key)}}.{{lowerTitle $ki }}, {{else}}{{lowerTitle (initials $key)}}.{{lowerTitle $ki }},{{ end }}
+		{{- range $nestedkfinal, $nestedvfinal := $value -}}
+        {{- range $nestedkffinal, $nestedvffinal := $nestedvfinal -}}
+        {{- if eq $nestedkfinal 0 -}}
+        {{- range $nestedfinal_idx, $nestedfinal_it := $nestedvffinal -}}
+        {{- range $nestedki, $nestedvi := $nestedfinal_it -}}
+        {{if eq ($nestedvi | typeOfVar) "int" -}}
+        if ret.{{lowerTitle $nestedki }} {{lthan}} 1 {
+			ret.{{lowerTitle $nestedki }} = {{lowerTitle (initials $key)}}.{{$nestedki }}
+		}
+        if ret.{{lowerTitle $nestedki }} {{lthan}} 1 {
+			err = append(err, fmt.Errorf("{{$nestedki }}Config->%s->{{$nestedki }} must not be empty", {{lowerTitle (initials $key)}}.{{$nestedki }}))
+		}
+        {{else -}}{{if (ne ($nestedvi | typeOfVar) "[]string")}}
+        {{if or (ne ((toOutPutDataTypeYaml $nestedvi $type) | typeOfVar) "bool") (ne ((toOutPutDataTypeYaml $nestedvi $type) | typeOfVar) "bool") -}}
+        if len(ret.{{lowerTitle $nestedki }}) {{lthan}} 1 {
+	 	    ret.{{lowerTitle $nestedki }} = *{{lowerTitle (initials $key)}}.{{ $nestedki }}
+	    }
+        if len(ret.{{lowerTitle $nestedki }}) {{lthan}} 1 {
+			err = append(err, fmt.Errorf("{{$nestedki }}Config->%s->{{$nestedki }} must not be empty", {{lowerTitle (initials $key)}}.{{$nestedki }}))
+		}
+        {{else -}}
+        if {{lowerTitle (initials $key)}}.{{ $nestedki }} != nil && *{{lowerTitle (initials $key)}}.{{ $nestedki }} {
+			ret.{{lowerTitle $nestedki }} = *{{lowerTitle (initials $key)}}.{{ $nestedki }}
+		}
+        {{ end -}}{{ end -}}
+        {{if (eq ($nestedvi | typeOfVar) "[]string") -}}
+        if len(ret.{{lowerTitle $nestedki }}) {{lthan}} 1 {
+	 	    ret.{{lowerTitle $nestedki }} = {{lowerTitle (initials $key)}}.{{ $nestedki }}
+	    }
+        if len(ret.{{lowerTitle $nestedki }}) {{lthan}} 1 {
+			err = append(err, fmt.Errorf("{{$nestedki }}Config->%s->{{$nestedki }} must not be empty", {{lowerTitle (initials $key)}}.{{$nestedki }}))
+		}
+        {{ end -}}
+        {{ end -}}
+        {{ end -}}{{ end -}}
+        {{ end }}{{ end }}{{ end }}
+    }
+
+	return
+}
+func ({{lowerTitle (initials $key)}} {{lowerTitle $key}}ConfigReadMap) getOrderedKeys() (ret []string) {
+	ret = make([]string, len({{lowerTitle (initials $key)}}))
+	i := 0
+	for k := range {{lowerTitle (initials $key)}} {
+		ret[i] = k
+		i++
+	}
+	sort.Strings(ret)
+	return
+}
+{{end}}
+{{ end }}{{ end }}{{ end }}{{ end }}{{ end }}{{ end }}{{end}}
+{{end}}
+{{end}}

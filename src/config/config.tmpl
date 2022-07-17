@@ -1,0 +1,42 @@
+{{$projectName := .ProductSource -}}
+{{$companyName := .Company -}}
+
+{{range $index, $values := .ProductTargets.YAML -}}
+{{range $key, $value := $values -}}
+{{$lenProperties := len $value}}
+{{- if and (eq $lenProperties 1) (eq ( $value | typeOfVar) "string") -}}
+{{$key}}: {{$value}}
+{{end}}
+{{- if and (gt $lenProperties 1) (eq ( $value | typeOfVar) "[]string") -}}
+{{$key -}}: {{range $index, $item := $value}}
+    - {{$item}}{{end}}
+{{end }}
+{{- if and (gt $lenProperties 1) (eq ( $value | typeOfVar) "[]map[string]interface {}") }}
+{{ $key -}}: {{range $index, $nestedmapvalues := $value}}
+    {{range $nestedmapkey, $nestedmapitem := $nestedmapvalues -}}
+    {{$nestedmapkey}}: {{$nestedmapitem }}{{ end -}}{{ end -}}
+{{end}}
+{{if and (gt $lenProperties 1) (eq ( $value | typeOfVar) "[]map[string][]map[string]interface {}") -}}
+{{$key -}}: {{range $index, $nestedmapvalues := $value}}
+    {{range $nestedmapkey, $nestedmapitem := $nestedmapvalues -}}
+    {{$nestedmapkey}}: 
+        {{- range $index, $lev1 := $nestedmapitem }}
+        {{- range $finindex, $finlev1 := $lev1 }}
+        {{- if (eq ( $finlev1 | typeOfVar) "[]string") -}}
+        {{$finindex -}}: {{range $index, $item := $finlev1 }}
+                - {{$item -}}{{end }}
+            {{else}}
+            {{- $finindex}}: {{$finlev1 }}
+            {{end}}{{end}}{{end}}{{end}}
+        {{end}}
+{{else}}{{- if and (eq $lenProperties 1) (eq ( $value | typeOfVar) "[]map[string][]map[string]interface {}") -}}
+{{$key}}: 
+    {{range $index, $nestedmapvalues := $value -}}
+    {{range $nestedmapkey, $nestedmapitem := $nestedmapvalues -}}
+    {{$nestedmapkey}}:
+        {{- range $index, $lev1 := $nestedmapitem }}
+        {{- range $finindex, $finlev1 := $lev1 }}
+        {{$finindex}}: {{$finlev1}}{{end}}{{end -}}{{end -}}{{end}}{{end}}{{end}}
+{{- end -}}
+{{- end -}}
+

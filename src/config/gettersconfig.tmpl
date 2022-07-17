@@ -1,0 +1,39 @@
+package config
+
+{{$projectName := .ProductSource -}}
+{{$companyName := .Company -}}
+
+{{$type := .ProductTargets.ProductFileTypeFrom}}
+{{range $index, $values := .ProductTargets.Config -}}
+{{range $key, $value := $values -}}
+    {{ if (ne ( $value | typeOfVar) "string") -}}
+    {{ if and (ne ( $value | typeOfVar) "string") (eq ( $value | typeOfVar) "[]map[string]interface {}") -}}
+    {{range $k, $v := $value -}}
+    {{range $kfinal, $vfinal := $v }}func ({{lowerTitle (initials $key)}} {{$key}}Config) {{$kfinal }}() {{if eq ($vfinal | typeOfVar) "string"}}{{((toOutPutDataTypeYaml $vfinal $type) | typeOfVar ) }}{
+        return  {{lowerTitle (initials $key)}}.{{lowerTitle $kfinal}}
+    }{{else}}{{$vfinal | typeOfVar}}{
+        return {{lowerTitle (initials $key)}}.{{lowerTitle $kfinal }}
+    } {{end}}{{end}}
+    {{end }}
+    {{- else }}{{ range $kfinal, $vfinal := $value -}}
+    {{ range $kffinal, $vffinal := $vfinal -}}
+    {{ if eq $kfinal 0 -}}
+    {{ range $final_idx, $final_it := $vffinal}}
+    {{ range $ki, $vi := $final_it -}}func ({{lowerTitle (initials $key)}} {{ $key }}Config) {{$ki}}() {{if eq ($vi | typeOfVar) "string"}}{{((toOutPutDataTypeYaml $vi $type) | typeOfVar ) }}{
+        return {{lowerTitle (initials $key)}}.{{lowerTitle $ki}}
+    }{{else}}{{$vi | typeOfVar}}{
+        return {{lowerTitle (initials $key)}}.{{ lowerTitle $ki}}
+    } {{end}}{{ end }}{{ end }}
+    {{- end }}{{ end }}{{ end }}
+    {{- end}}
+    {{else}}{{- if (eq ( $value | typeOfVar) "string") }}func ({{lowerTitle (initials $key)}} {{$key }}Config)
+    {{- if or (eq $value "True") (eq $value "False") }} {{$key}}() {{  ((toOutPutDataTypeYaml $value $type) | typeOfVar) -}}{
+        return {{lowerTitle (initials $key)}}.{{lowerTitle $key}}
+    }
+    {{ else }}  {{$key}}() {{ (($value | stringToInt) | typeOfVar)}}{
+        return {{lowerTitle (initials $key)}}.{{lowerTitle $key}}
+   }
+    {{end -}} {{end -}}
+    {{end}}
+{{end}}
+{{end}}

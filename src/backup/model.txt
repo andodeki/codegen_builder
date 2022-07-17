@@ -1,0 +1,126 @@
+package main 
+
+{{$stname:=.ProductTargets.StructName}}
+{{if eq $stname "roles" -}}
+// {{title $stname}} is a function a user can serve
+type {{title $stname}} string
+{{else -}}
+// {{title $stname}}ID is a function a user can serve
+type {{title $stname}}ID string
+{{end -}}
+
+{{if eq $stname "roles" -}}
+// Nil{{title $stname}}ID is an empty {{title $stname}}
+type Nil{{title $stname}}ID {{title $stname}}
+{{else -}}
+// Nil{{title $stname}}ID is an empty {{title $stname}}
+type Nil{{title $stname}}ID {{title $stname -}}ID
+{{- end -}}
+
+{{ if and .ProductTargets.TypeName (ne $stname "roles") }}
+{{range $index, $item := .Enums -}} 
+{{ if eq $index 0 }}type {{ .CustomType }} string {{end}}
+{{end}}
+{{end}}
+
+
+{{ range $index, $item := .ProductTargets.TypeName}}
+{{- if and $item (eq $stname "roles") -}}
+const (
+
+)
+{{end }}
+{{end }}
+
+
+{{ range $index, $item := .ProductTargets.TypeName}}
+{{ if and $item (ne $stname "roles") }}
+const (
+
+{{title .Name}} {{ .CustomType }} = "{{ .Name }}"
+
+)
+{{- end -}}
+{{end }}
+
+{{if eq $stname "roles" -}}
+type User{{title $stname}} struct { 
+{{- range $index, $item := .Properties -}}
+{{if and (ne $index 0) (eq $stname "roles") (ne .TypeName "*time.Time")}}
+<brt>{{- title .Name}} {{title $stname}} `{{.Tag}}`
+{{- end -}}
+{{end}} 
+}
+{{else}}{{if ne $stname "roles"}}
+type {{title $stname}} struct { 
+{{- range $index, $item := .Properties -}}
+{{if (eq $index 0) }}
+<brt>{{- title .Name}} {{title $stname}}ID `{{.Tag}}`
+{{else -}}
+<brt>{{- title .Name}} {{.TypeName}} `{{.Tag}}`
+{{end -}}
+{{end -}} 
+}
+{{else}}
+-- default code --
+{{end}}{{end}}
+
+{{if eq $stname "roles" -}}
+    var {{$stname}}ValidationRules = map[int]func({{ stringSlice $stname 0 1 }} User{{title $stname}}) bool{
+{{- range $index, $item := .Properties -}}
+{{if and (ne $index 0) (ne .Name "CreatedAt") (ne .Name "UpdatedAt") (ne .Name "DeletedAt")}}
+    {{dec $index}}: func({{ stringSlice $stname 0 1 }} User{{title $stname}}) bool {
+    {{if eq .Name "email" -}}
+        <brt>return strings.Contains(*{{ stringSlice $stname 0 1 }}.{{.Name}}, "@") && len(*{{ stringSlice $stname 0 1 }}.{{.Name}}) > 5
+    {{- else -}}{{if eq .TypeName "*string" -}}
+		<brt>return len(*{{ stringSlice $stname 0 1 }}.{{.Name}}) != 0 && {{ stringSlice $stname 0 1 }}.{{.Name}} != nil
+    {{- else -}}{{if eq .TypeName "*int64" -}}
+		<brt>return {{ stringSlice $stname 0 1 }}.{{.Name}} != nil
+    {{- else -}}
+		<brt>return len({{ stringSlice $stname 0 1 }}.{{.Name}}) != 0
+    {{- end -}}{{end}}{{end}}
+    },
+{{- end -}}
+{{end}} 
+}
+
+func ({{ stringSlice $stname 0 1 }} *User{{title $stname}}) IsMy{{title $stname}}Valid() bool {
+	for _, rule := range {{$stname}}ValidationRules {
+		if !rule(*{{ stringSlice $stname 0 1 }}) {
+			return false
+		}
+	}
+	return true
+}
+{{else}}{{if ne $stname "roles" -}}
+    var {{$stname}}ValidationRules = map[int]func({{ stringSlice $stname 0 1 }} {{title $stname}}) bool{
+{{- range $index, $item := .Properties -}}
+{{if and (ne $index 0) (ne .Name "CreatedAt") (ne .Name "UpdatedAt") (ne .Name "DeletedAt")}}
+    {{dec $index}}: func({{ stringSlice $stname 0 1 }} {{title $stname}}) bool {
+    {{if eq .Name "Email" -}}
+        <brt>return strings.Contains(*{{ stringSlice $stname 0 1 }}.{{.Name}}, "@") && len(*{{ stringSlice $stname 0 1 }}.{{.Name}}) > 5
+    {{- else -}}{{if eq .TypeName "*string" -}}
+		<brt>return len(*{{ stringSlice $stname 0 1 }}.{{.Name}}) != 0 && {{ stringSlice $stname 0 1 }}.{{.Name}} != nil
+    {{- else -}}{{if eq .TypeName "*int64" -}}
+		<brt>return {{ stringSlice $stname 0 1 }}.{{.Name}} != nil
+    {{- else -}}
+		<brt>return len(*{{ stringSlice $stname 0 1 }}.{{.Name}}) != 0 && {{ stringSlice $stname 0 1 }}.{{.Name}} != nil
+    {{- end -}}{{end}}{{end}}
+    },
+{{- end -}}
+{{end}} 
+}
+
+func ({{ stringSlice $stname 0 1 }} *{{title $stname}}) IsMy{{title $stname}}Valid() bool {
+	for _, rule := range {{$stname}}ValidationRules {
+		if !rule(*{{ stringSlice $stname 0 1 }}) {
+			return false
+		}
+	}
+	return true
+}
+{{else}}
+    -- default code --
+{{end}}{{end}}
+
+

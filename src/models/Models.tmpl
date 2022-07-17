@@ -1,0 +1,138 @@
+package models 
+
+import (
+      "time"
+	  "strings"
+)
+
+{{$projectName := .ProductSource -}}
+{{$companyName := .Company -}}
+
+{{- range $key, $element := .ProductTargets.Structs -}}
+{{if eq $key.Name "roles" -}}
+// {{trimSuffix "s" (TitleRemoveUnderscore $key.Name)}} is a function a user can serve
+type {{trimSuffix "s" (TitleRemoveUnderscore $key.Name)}} string
+{{else}}
+// {{trimSuffix "s" (TitleRemoveUnderscore $key.Name)}}ID is a function a user can serve
+type {{trimSuffix "s" (TitleRemoveUnderscore $key.Name)}}ID string
+{{end -}}
+{{end -}}
+
+{{- range $key, $element := .ProductTargets.Structs -}}
+{{if eq $key.Name "roles" -}}
+// Nil{{trimSuffix "s" (TitleRemoveUnderscore $key.Name)}}ID is an empty {{trimSuffix "s" (TitleRemoveUnderscore $key.Name)}}
+type Nil{{trimSuffix "s" (TitleRemoveUnderscore $key.Name)}}ID {{trimSuffix "s" (TitleRemoveUnderscore $key.Name)}}
+{{else}}
+// Nil{{trimSuffix "s" (TitleRemoveUnderscore $key.Name)}}ID is an empty {{trimSuffix "s" (TitleRemoveUnderscore $key.Name)}}
+type Nil{{trimSuffix "s" (TitleRemoveUnderscore $key.Name)}}ID {{trimSuffix "s" (TitleRemoveUnderscore $key.Name) }}ID
+{{- end -}}
+{{end}}
+
+{{range $index, $element := .ProductTargets.Types -}}
+{{ if and $element }}
+{{range $index, $item := $element -}} 
+{{- if eq $index 0}}type {{ $item.CustomType }} string {{end -}}
+{{end -}}
+{{end -}}
+{{end -}}
+
+
+{{- range $key, $element := .ProductTargets.Types -}}
+{{if $element }}
+const (
+{{- range $index, $item := $element}}
+{{if eq (.Name | typeOfVarSpecial) "int" }}_{{ .Name }}{{else}}{{.Name }}{{end}} {{ .CustomType }} = "{{ .Name }}"
+{{- end}}
+)
+{{end}}
+{{- end -}}
+
+
+{{- range $key, $element := .ProductTargets.Structs -}}
+{{if eq $key.Name "roles"}}
+    //{{$key.Name}}
+type User{{TitleRemoveUnderscore $key.Name}} struct { 
+    {{range $index, $item := $element -}}
+      {{if and (ne $index 0) (eq $key.Name "roles") (ne .TypeName "*time.Time") }}
+      {{- title .Name}} {{trimSuffix "s" (TitleRemoveUnderscore $key.Name)}} `{{.Tag}}`
+    {{end -}}{{end }}
+}
+  {{else}}{{if ne $key.Name "roles"}}
+    //{{$key.Name}}
+type {{TitleRemoveUnderscore $key.Name}} struct { 
+    {{range $index, $item := $element -}}
+      {{if (eq $index 0) }}
+      {{- title .Name}} {{trimSuffix "s" (TitleRemoveUnderscore $key.Name)}}ID `{{.Tag}}`
+      {{else -}}
+    {{.Name}} {{.TypeName }} `{{.Tag}}`
+    {{end -}}{{end }}
+}
+  {{else}}
+    /*-- default code --*/
+{{end}}{{end}}
+{{end -}}
+
+
+{{- range $key, $element := .ProductTargets.Structs -}}
+{{if eq $key.Name "roles"}}
+  var {{(lowerTitle (TitleRemoveUnderscore $key.Name))}}ValidationRules = map[int]func({{ stringSlice $key.Name 0 1 }} User{{TitleRemoveUnderscore $key.Name}}) bool{
+  {{- range $index, $item := $element -}}
+  {{if and (ne $index 0) (ne .Name "CreatedAt") (ne .Name "UpdatedAt") (ne .Name "DeletedAt")}}
+      {{dec $index}}: func({{ stringSlice $key.Name 0 1 }} User{{TitleRemoveUnderscore $key.Name}}) bool {
+      {{if eq .Name "email" -}}
+          return strings.Contains(*{{ stringSlice $key.Name 0 1 }}.{{.Name}}, "@") && len(*{{ stringSlice $key.Name 0 1 }}.{{.Name}}) > 5
+      {{- else -}}{{if eq .TypeName "*string" -}}
+      return {{ stringSlice $key.Name 0 1 }}.{{.Name}} && {{ stringSlice $key.Name 0 1 }}.{{.Name}} != nil
+      {{- else -}}{{if eq .TypeName "*bool" -}}
+      return *{{ stringSlice $key.Name 0 1 }}.{{.Name}} && {{ stringSlice $key.Name 0 1 }}.{{.Name}} != nil
+      {{- else -}}{{if eq .TypeName "*int64" -}}
+      return {{ stringSlice $key.Name 0 1 }}.{{.Name}} != nil
+      {{- else -}}
+      return len({{ stringSlice $key.Name 0 1 }}.{{.Name}}) != 0
+      {{- end -}}{{end}}{{end}}{{end}}
+      },
+  {{- end -}}
+  {{end}} 
+  }
+
+  func ({{ stringSlice $key.Name 0 1 }} *User{{TitleRemoveUnderscore $key.Name}}) IsMy{{TitleRemoveUnderscore $key.Name}}Valid() bool {
+    for _, rule := range {{(lowerTitle (TitleRemoveUnderscore $key.Name))}}ValidationRules {
+      if !rule(*{{ stringSlice $key.Name 0 1 }}) {
+        return false
+      }
+    }
+    return true
+  }
+{{else}}{{if ne $key.Name "roles"}}
+  var {{(lowerTitle (TitleRemoveUnderscore $key.Name))}}ValidationRules = map[int]func({{ stringSlice $key.Name 0 1 }} {{TitleRemoveUnderscore $key.Name}}) bool{
+  {{- range $index, $item := $element -}}
+  {{if and (ne $index 0) (ne .Name "CreatedAt") (ne .Name "UpdatedAt") (ne .Name "DeletedAt")}}
+      {{dec $index}}: func({{ stringSlice $key.Name 0 1 }} {{TitleRemoveUnderscore $key.Name}}) bool {
+      {{if eq .Name "Email" -}} ///Here1
+          return strings.Contains(*{{ stringSlice $key.Name 0 1 }}.{{.Name}}, "@") && len(*{{ stringSlice $key.Name 0 1 }}.{{.Name}}) > 5
+      {{- else -}}{{if eq .TypeName "*string" -}} ///Here2
+      return len(*{{ stringSlice $key.Name 0 1 }}.{{.Name}}) != 0 && {{ stringSlice $key.Name 0 1 }}.{{.Name}} != nil
+      {{- else -}}{{if contains .TypeName "*bool" -}} ///Here3
+      return *{{ stringSlice $key.Name 0 1 }}.{{.Name}} && {{ stringSlice $key.Name 0 1 }}.{{.Name}} != nil
+      {{- else -}}{{if or (contains .TypeName "64") (contains .TypeName "time") -}}///Here4
+      return {{ stringSlice $key.Name 0 1 }}.{{.Name}} != nil
+      {{- else -}}///Here5
+      return len(*{{ stringSlice $key.Name 0 1 }}.{{.Name}}) != 0 && {{ stringSlice $key.Name 0 1 }}.{{.Name}} != nil
+      {{- end -}}{{end}}{{end}}{{end}}
+      },
+  {{- end -}}
+  {{end}} 
+  }
+
+  func ({{ stringSlice $key.Name 0 1 }} *{{TitleRemoveUnderscore $key.Name}}) IsMy{{TitleRemoveUnderscore $key.Name}}Valid() bool {
+    for _, rule := range {{(lowerTitle (TitleRemoveUnderscore $key.Name))}}ValidationRules {
+      if !rule(*{{ stringSlice $key.Name 0 1 }}) {
+        return false
+      }
+    }
+    return true
+  }
+{{else}}
+  -- default code --
+{{end}}{{end}}
+{{end -}}

@@ -1,0 +1,13 @@
+package runsvc
+
+{{$target := index .ProductTargets.DSource.DBS 0 -}}
+{{$name := replace $target "DBClients" "" -}}
+{{$projectName := .ProductSource -}}
+{{$companyName := .Company -}}
+
+//{{$target}}
+//[Email HttpServer Queue PasetoToken JaegerClients Email PasetoToken ScyllaDBClients 
+//HttpServer PostgresDBClients MonetDBClients RedisDBClients Queue]
+{{if contains $target "Postgres" -}}
+
+{{end}}

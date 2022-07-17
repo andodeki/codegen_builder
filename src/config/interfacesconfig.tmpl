@@ -1,0 +1,29 @@
+package config
+{{$projectName := .ProductSource -}}
+{{$companyName := .Company -}}
+
+
+{{$type := .ProductTargets.ProductFileTypeFrom}}
+{{range $index, $values := .ProductTargets.Config -}}
+{{range $key, $value := $values }}
+type {{$key}} interface{
+    {{ if (ne ( $value | typeOfVar) "string") -}}
+    {{ if and (ne ( $value | typeOfVar) "string") (eq ( $value | typeOfVar) "[]map[string]interface {}") -}}
+    {{range $k, $v := $value -}}
+    {{range $kfinal, $vfinal := $v }} {{ $kfinal}}{{if eq ($vfinal | typeOfVar) "string"}}() {{((toOutPutDataTypeYaml $vfinal $type) | typeOfVar )}}{{else}}() {{$vfinal | typeOfVar}} {{end}}{{end}}
+    {{end }}
+    {{- else }}{{ range $kfinal, $vfinal := $value -}}
+    {{ range $kffinal, $vffinal := $vfinal -}}
+    {{ if eq $kfinal 0 -}}
+    {{ range $final_idx, $final_it := $vffinal}}
+    {{ range $ki, $vi := $final_it -}} {{ $ki }}() {{if eq ($vi | typeOfVar) "string"}}{{((toOutPutDataTypeYaml $vi $type) | typeOfVar ) }}{{else}}{{$vi | typeOfVar}} {{end}}{{ end }}{{ end }}
+    {{- end }}{{ end }}{{ end }}
+    {{- end}}
+    {{else}}{{- if (eq ( $value | typeOfVar) "string") }}{{ $key }}
+    {{- if or (eq $value "True") (eq $value "False") }}() {{   ((toOutPutDataTypeYaml $value $type) | typeOfVar) -}} 
+    {{ else }}() {{(($value | stringToInt) | typeOfVar)}} 
+    {{end -}} {{end -}}
+    {{end}}
+}
+{{end}}
+{{end}}
