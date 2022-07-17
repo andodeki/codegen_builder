@@ -420,7 +420,6 @@ func extractFieldFromSqlFile(extract *data.ExtractedData, l int, f fs.FileInfo, 
 func newFunction(dataSql data.Data, dataModel data.Data, nameModel string, nameSql string) {
 
 	for _, v := range dataSql.ProductTargets.OutputFilename {
-		fmt.Printf("v: %v\n", v)
 		if v == nameSql {
 			process.ProcessNonConcreteTargets("src/models/DBProductTarget.tmpl", dataSql, v)
 			dataSql.ClearProductTargetProperty()

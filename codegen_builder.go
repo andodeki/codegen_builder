@@ -2,9 +2,11 @@ package main
 
 // https://betterprogramming.pub/how-to-generate-code-using-golang-templates-942cba2e5e0c
 import (
+	"flag"
 	"fmt"
 
 	// "github.com/andodeki/gen_project/builder/codegen_builder/config"
+	"github.com/andodeki/gen_project/builder/codegen_builder/src"
 	"github.com/andodeki/gen_project/builder/codegen_builder/src/config"
 	"github.com/andodeki/gen_project/builder/codegen_builder/src/data"
 	"github.com/andodeki/gen_project/builder/codegen_builder/src/datasources"
@@ -12,10 +14,17 @@ import (
 	"github.com/andodeki/gen_project/builder/codegen_builder/src/utils"
 )
 
+var BuildVersion string
+var BuildTime string
+
 //  https://go.dev/play/p/zF6y6fWTraq
 // const fmtJson = `{"ProductTarget":"%s","ProductSource":"propertylisting","ProductFileType":".sql","ConcreteTargets":["normal","igloo"],"Properties":[{"Name":"windowType","TypeName":"UUID","Tag":""},{"Name":"doorType","TypeName":"TEXT","Tag":""},{"Name":"floor","TypeName":"TIMESTAMP","Tag":""}]}`
 // /home/godev/go/src/github.com/andodeki/gen_project/codegen_builder
 func main() {
+	flag.Parse()
+
+	fmt.Println("github.com/andodeki/api.propertylist.com version:", BuildVersion)
+	fmt.Println("build at:", BuildTime)
 
 	projectDefaults := data.Data{
 		ProductSource: "propertylisting",
@@ -34,6 +43,8 @@ func main() {
 
 	datasources.DataSourcesTargets(kvdbs, dbs, dataYAML, projectDefaults)
 	utils.GenerateUtils(projectDefaults)
+	src.InMain(projectDefaults)
+	// InMain(projectDefaults)
 
 	fmt.Println("Remember to edit the files that contain the Concrete Targets!")
 }
