@@ -1,0 +1,117 @@
+
+Email: 
+    Enabled: True
+    Host: smtp.gmail.com
+    Username: andrewodeki@gmail.com
+    Password: ICU@i4cu@ICU
+    InsecureSkipVerify: True
+    RecipientUsername: andodeki@gmail.com
+    RecipientPassword: icuarchicad17i4cuicu
+    RecipientHost: smtp.gmail.com:993
+    Subject: System Admin Password
+    LogMessages: True
+
+HttpServer: 
+    ServerName: api.propertylist.com
+    Bind: 0.0.0.0
+    Port: 8089
+    LogRequests: True
+    Cookie: True
+
+
+JaegerClients: 
+    0-jaeger:
+        Enabled: False
+        JaegerServiceName: propertylist_jaeger
+        JaegerEndpoint: http://localhost:14268/api/traces
+        LogMessages: True
+MonetDBClients: 
+    0-monetdb:
+        Enabled: False
+        Name: propertylistingapi
+        DatabaseHost: 10.9.49.118
+        DatabasePort: 50000
+        DatabaseUsername: propertylistingadmin
+        DatabasePassword: password
+        DatabaseDriver: monetdb
+        DatabaseName: propertylisting
+        DatabaseSSLMode: disable
+        MigrationDir: ./datasources
+        DownMigration: False
+PasetoToken: 
+    Enabled: True
+    TokenSymmetricKey: 12345678901234567890123456789012
+    AccessTokenDuration: 30
+    RefreshTokenDuration: 30
+    AccessTokenDurationDev: 30
+    RefreshTokenDurationDev: 60
+    IsDev: True
+
+PostgresClients: 
+    0-postgres:
+        Enabled: True
+        Name: propertylistingapi
+        DatabaseHost: 10.38.195.235
+        DatabasePort: 5432
+        DatabaseUsername: propertylistingadmin
+        DatabasePassword: password
+        DatabaseDriver: postgres
+        DatabaseName: propertylisting
+        DatabaseSSLMode: disable
+        MigrationDir: ./datasources
+        DownMigration: False
+Queue: 
+    Enabled: True
+    MaxWorkers: 10
+    LogMessages: True
+
+RedisDBClients: 
+    0-redis:
+        Enabled: True
+        Name: propertylistingapi
+        RedisPassword: 
+        RedisAddress: 10.38.195.64:6379
+        DatabaseUsername: propertylistingadmin
+        RedisDatabase: 0
+        LogMessages: True
+ScyllaDBClients: 
+    0-scylla:Enabled: True
+            Name: scylla-node0
+            Host: 
+                - 10.38.195.126
+                - 10.38.195.20
+                - 10.38.195.158
+            Username: propertylistingadmin
+            Password: password
+            Keyspace: propertylisting
+            Class: NetworkTopologyStrategy
+            ReplicationFactor: 3
+            DurableWrites: True
+            
+        
+    1-scylla:Enabled: True
+            Name: scylla-node0
+            Host: 
+                - 10.38.195.20
+            Username: propertylistingadmin
+            Password: password
+            Keyspace: propertylisting
+            Class: NetworkTopologyStrategy
+            ReplicationFactor: 3
+            DurableWrites: True
+            
+        
+    2-scylla:Enabled: True
+            Name: scylla-node0
+            Host: 
+                - 10.38.195.158
+            Username: propertylistingadmin
+            Password: password
+            Keyspace: propertylisting
+            Class: NetworkTopologyStrategy
+            ReplicationFactor: 3
+            DurableWrites: True
+            
+        
+Version: 0
+

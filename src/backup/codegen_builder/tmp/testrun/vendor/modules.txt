@@ -1,0 +1,70 @@
+# github.com/cespare/xxhash/v2 v2.1.2
+## explicit; go 1.11
+github.com/cespare/xxhash/v2
+# github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f
+## explicit
+github.com/dgryski/go-rendezvous
+# github.com/go-redis/cache/v8 v8.4.3
+## explicit; go 1.13
+github.com/go-redis/cache/v8
+# github.com/go-redis/redis/v8 v8.11.3
+## explicit; go 1.13
+github.com/go-redis/redis/v8
+github.com/go-redis/redis/v8/internal
+github.com/go-redis/redis/v8/internal/hashtag
+github.com/go-redis/redis/v8/internal/hscan
+github.com/go-redis/redis/v8/internal/pool
+github.com/go-redis/redis/v8/internal/proto
+github.com/go-redis/redis/v8/internal/rand
+github.com/go-redis/redis/v8/internal/util
+# github.com/gocql/gocql v0.0.0-20200131111108-92af2e088537
+## explicit; go 1.13
+github.com/gocql/gocql
+github.com/gocql/gocql/internal/lru
+github.com/gocql/gocql/internal/murmur
+github.com/gocql/gocql/internal/streams
+# github.com/golang/snappy v0.0.1
+## explicit
+github.com/golang/snappy
+# github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed
+## explicit
+github.com/hailocab/go-hostpool
+# github.com/jmoiron/sqlx v1.3.5
+## explicit; go 1.10
+github.com/jmoiron/sqlx
+github.com/jmoiron/sqlx/reflectx
+# github.com/klauspost/compress v1.13.6
+## explicit; go 1.15
+github.com/klauspost/compress/s2
+# github.com/lib/pq v1.2.0
+## explicit
+github.com/lib/pq
+github.com/lib/pq/oid
+github.com/lib/pq/scram
+# github.com/scylladb/go-reflectx v1.0.1
+## explicit
+github.com/scylladb/go-reflectx
+# github.com/scylladb/gocqlx/v2 v2.7.0
+## explicit; go 1.17
+github.com/scylladb/gocqlx/v2
+# github.com/vmihailenco/go-tinylfu v0.2.2
+## explicit; go 1.15
+github.com/vmihailenco/go-tinylfu
+# github.com/vmihailenco/msgpack/v5 v5.3.4
+## explicit; go 1.11
+github.com/vmihailenco/msgpack/v5
+github.com/vmihailenco/msgpack/v5/msgpcode
+# github.com/vmihailenco/tagparser/v2 v2.0.0
+## explicit; go 1.15
+github.com/vmihailenco/tagparser/v2
+github.com/vmihailenco/tagparser/v2/internal
+github.com/vmihailenco/tagparser/v2/internal/parser
+# golang.org/x/exp v0.0.0-20210916165020-5cb4fee858ee
+## explicit; go 1.17
+golang.org/x/exp/rand
+# golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+## explicit
+golang.org/x/sync/singleflight
+# gopkg.in/inf.v0 v0.9.1
+## explicit
+gopkg.in/inf.v0

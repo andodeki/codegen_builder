@@ -1,0 +1,26 @@
+package main 
+
+{{$target := index .ConcreteTargets 0}} 
+type {{$target}}Builder struct { 
+{{range .Properties -}} 
+    {{.Name}} {{.TypeName}} 
+{{end -}} 
+} 
+
+func new{{title $target}}Builder() *{{$target}}Builder { 
+    return &{{$target}}Builder{} 
+} 
+
+{{range .Properties}} 
+func (b *{{$target}}Builder) set{{if eq .TypeName `int`}}Num{{end}}{{title .Name}}() { 
+    b.{{.Name}} = *new({{.TypeName}}) // replace this!! 
+} 
+{{end}} 
+
+func (b *{{$target}}Builder) get{{title .ProductTarget}}() {{.ProductTarget}} { 
+    return {{.ProductTarget}}{ 
+    {{range .Properties -}} 
+        {{.Name}}: b.{{.Name}}, 
+    {{end -}} 
+    } 
+}

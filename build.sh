@@ -12,3 +12,5 @@ pwd
 # Run the program
 # chmod +x build.sh
 # ./build.sh
+
+apk --update-cache --repository http://dl-3.alpinelinux.org/alpine/edge/testing/ add android-tools

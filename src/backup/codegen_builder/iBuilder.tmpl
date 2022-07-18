@@ -1,0 +1,17 @@
+package main 
+
+type iBuilder interface { 
+{{range .Properties -}} 
+    set{{if eq .TypeName `int`}}Num{{end}}{{title .Name}}() 
+{{end -}} 
+    get{{title .ProductTarget}}() {{.ProductTarget}} 
+} 
+
+func getBuilder(builderType string) iBuilder { 
+{{range .ConcreteTargets -}} 
+    if builderType == "{{.}}" { 
+        return &{{.}}Builder{} 
+    } 
+{{end -}} 
+    return nil 
+}

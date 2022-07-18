@@ -1,0 +1,7 @@
+package main 
+
+type {{.ProductTarget}} struct { 
+{{range .Properties -}} 
+    {{.Name}} {{.TypeName}} 
+{{end -}} 
+}

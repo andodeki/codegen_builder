@@ -1,0 +1,26 @@
+{
+    "ProductTarget":"users",
+    "ProductSource":"propertylisting",
+    "ProductFileType":".sql",
+    "ConcreteTargets":[
+       "normal",
+       "igloo"
+    ],
+    "Properties":[
+       {
+          "Name":"windowType",
+          "TypeName":"UUID",
+          "Tag":""
+       },
+       {
+          "Name":"doorType",
+          "TypeName":"TEXT",
+          "Tag":""
+       },
+       {
+          "Name":"floor",
+          "TypeName":"TIMESTAMP",
+          "Tag":""
+       }
+    ]
+ }

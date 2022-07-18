@@ -1,0 +1,17 @@
+package main 
+
+import "fmt" 
+
+func main() { 
+{{$pt:=.ProductTarget}} 
+{{$ct:=.ConcreteTargets}} 
+{{$ps:=.Properties}} 
+{{range $index, $item := $ct}} 
+    {{$item}}Builder := getBuilder("{{$item}}") 
+    {{if eq $index 0}}director := newDirector({{$item}}Builder)   {{else}}director.setBuilder({{$item}}Builder){{end}} 
+    {{$item}}{{title $pt}} := director.build{{title $pt}}() 
+    {{range $p:=$ps -}} 
+        fmt.Printf("{{title $item}} {{title $pt}} {{if eq $p.TypeName `int`}}Num{{end}}{{title $p.Name}}: %v\n", {{$item}}{{title $pt}}.{{$p.Name}}) 
+    {{end -}} 
+{{end}} 
+}

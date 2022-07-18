@@ -1,0 +1,9 @@
+package main 
+
+{{range $index, $element := .ProductTargets.Structs}}//{{$index.ProductSource}}.{{$index.Name}}
+type {{$index.Name}} struct { 
+{{range $element}}
+    {{.Name}} {{.TypeName}} 
+{{end}}
+}
+{{end}}

@@ -1,0 +1,22 @@
+package main 
+
+type director struct { 
+    builder iBuilder 
+} 
+
+func newDirector(b iBuilder) *director { 
+    return &director{ 
+        builder: b, 
+    } 
+} 
+
+func (d *director) setBuilder(b iBuilder) { 
+    d.builder = b 
+} 
+
+func (d *director) build{{title .ProductTarget}}() {{.ProductTarget}} { 
+{{range .Properties -}} 
+    d.builder.set{{if eq .TypeName `int`}}Num{{end}}{{title .Name}}() 
+{{end -}} 
+    return d.builder.get{{title .ProductTarget}}() 
+}
